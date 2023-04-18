@@ -4,10 +4,7 @@ import org.springframework.stereotype.Repository;
 import ru.netology.exception.NotFoundException;
 import ru.netology.model.Post;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -18,11 +15,22 @@ public class PostRepository {
     private static final AtomicLong idCounter = new AtomicLong(0);
 
     public List<Post> all() {
-        return new ArrayList<>(posts.values());
+        List<Post> allNotRemovedPosts = new ArrayList<>();
+        Collection<Post> values = posts.values();
+        for (Post post : values) {
+            if (!post.isRemoved()) {
+                allNotRemovedPosts.add(post);
+            }
+        }
+        return allNotRemovedPosts;
     }
 
     public Optional<Post> getById(long id) {
-        return Optional.ofNullable(posts.get(id));
+        if (posts.containsKey(id) && !posts.get(id).isRemoved()) {
+            return Optional.ofNullable(posts.get(id));
+        } else {
+            return Optional.empty();
+        }
     }
 
     public Post save(Post post) {
@@ -32,21 +40,22 @@ public class PostRepository {
             posts.put(iterateId, newPost);
             return newPost;
         }
+        Post targetPost = posts.get(post.getId());
 
-        Post existPost = posts.get(post.getId());
-
-        existPost.setContent(post.getContent());
-        posts.put(post.getId(), existPost);
-        return existPost;
-
+        if (targetPost != null && !targetPost.isRemoved()) {
+            targetPost.setContent(post.getContent());
+            posts.put(post.getId(), targetPost);
+        }
+        return targetPost;
     }
 
-    public void removeById(long id) {
+    public boolean removeById(long id) {
         if (posts.containsKey(id)) {
-            posts.remove(id);
-        } else {
-            throw new NotFoundException("Такого id:" + id + " нет!");
+            Post post = posts.get(id);
+            post.setRemoved(true);
+            return true;
         }
+        return false;
     }
 
 }
